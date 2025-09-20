@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Energy Audit – School Dashboard & Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f7f8fb; --card:#ffffff; --text:#1f2937; --muted:#6b7280; --brand:#2563eb; --ok:#16a34a; --warn:#f59e0b; --danger:#ef4444;
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0; padding:0; font-family:"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--text)}
+    header{position:sticky; top:0; z-index:5; background:rgba(255,255,255,0.8); backdrop-filter:saturate(180%) blur(8px); border-bottom:1px solid #e5e7eb}
+    .wrap{max-width:1100px; margin:0 auto; padding:16px 20px}
+    h1{margin:6px 0 2px; font-size:28px}
+    .sub{color:var(--muted); font-size:14px}
+    .grid{display:grid; grid-template-columns:1fr; gap:18px; margin:18px 0}
+    @media (min-width:980px){ .grid{grid-template-columns:1.25fr 1fr} }
+
+    .card{background:var(--card); border:1px solid #e5e7eb; border-radius:var(--radius); box-shadow:0 8px 22px rgba(2,6,23,0.04); padding:18px}
+    .card h2{margin:0 0 10px; font-size:20px}
+    .help{color:var(--muted); font-size:13px}
+
+    label{display:block; font-size:14px; margin:10px 0 6px}
+    input, select, button{font:inherit}
+    input[type="text"], input[type="number"], select{width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:12px; outline:none}
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button{appearance:none; margin:0}
+
+    /* Modern focus styles */
+    :focus{outline:none}
+    :focus-visible{outline:2px solid transparent}
+    input[type="text"], input[type="number"], select, .btn{
+      transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease, color .2s ease, transform .06s ease;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus{
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
+    }
+    .btn:focus-visible{ box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
+    .btn:active{ transform: translateY(1px); }
+
+    .row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px}
+    .actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+    .btn{padding:10px 14px; border-radius:12px; border:1px solid transparent; cursor:pointer; transition:.2s; font-weight:600}
+    .btn.primary{background:var(--brand); color:white}
+    .btn.secondary{background:white; border-color:#d1d5db}
+    .btn.danger{background:#ffe5e5; color:var(--danger); border:1px solid #fecaca}
+    .btn:hover{filter:brightness(0.98)}
+
+    table{width:100%; border-collapse:separate; border-spacing:0 10px}
+    thead th{font-size:13px; color:var(--muted); text-align:left; padding:0 10px}
+    tbody td{background:white; border:1px solid #e5e7eb; padding:12px 10px; vertical-align:middle}
+    tbody tr td:first-child{border-top-left-radius:12px; border-bottom-left-radius:12px}
+    tbody tr td:last-child{border-top-right-radius:12px; border-bottom-right-radius:12px}
+    tfoot td{padding:10px; font-weight:700}
+    .right{text-align:right}
+    .center{text-align:center}
+    tbody tr:hover td{ box-shadow: inset 0 0 0 9999px rgba(37,99,235,0.03); }
+
+    .tips{display:grid; grid-template-columns:1fr; gap:12px}
+    @media (min-width:780px){.tips{grid-template-columns:1fr 1fr}}
+    .tip{background:#f0f9ff; border:1px dashed #bae6fd; padding:12px; border-radius:12px; font-size:14px}
+
+    footer{color:var(--muted); font-size:12px; text-align:center; padding:24px}
+    .badge{display:inline-flex; align-items:center; gap:6px; font-size:12px; background:#ecfeff; color:#046c8a; border:1px solid #a5f3fc; padding:6px 10px; border-radius:999px}
+
+    /* Optional: light/dark adaptive tweaks */
+    @media (prefers-color-scheme: dark){
+      :root{ --bg:#0b1220; --card:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --brand:#3b82f6; }
+      .card{ border-color:#1f2937; box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
+      tbody td{ background:#0f172a; border-color:#1f2937; }
+      .btn.secondary{ background:#0b1220; border-color:#334155; color:#e5e7eb }
+      .btn.danger{ background:#2a0f12; color:#fecaca; border-color:#7f1d1d }
+      .tip{ background:#0b2536; border-color:#0e7490; }
+      .badge{ background:#073642; color:#a5f3fc; border-color:#0ea5e9 }
+    }
+  </style>
+</head>
+<body>
+  <header style="position:relative; overflow:hidden;">
+    <div style="position:absolute; inset:0; background-image:url('https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=1600,h=500,fit=crop,f=jpeg/Y4LlkLg53Mt98Keg/5441838c9608f62554f6df9cc9c99e6d-dWxMGkjlyzfeB8bM.jpg'); background-size:cover; background-position:center; filter:saturate(110%);"></div>
+    <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.92) 60%, rgba(255,255,255,1) 100%);"></div>
+    <div class="wrap" style="position:relative; padding-top:32px; padding-bottom:28px;">
+      <h1 style="margin:0; font-size:32px; color: #000">📊 Energy Audit — School Dashboard & Calculator</h1>
+      <p class="sub" style="margin:6px 0 0; max-width:800px;">Estimate electricity usage and costs, visualize top consumers, and discover quick energy-saving wins for your campus.</p>
+    </div>
+  </header>
+  <div class="container">
+    <!-- Left -->
+    <div class="left-panel">
+      <h2>Energy Audit Form</h2>
+      <label>Name:</label>
+      <input type="text" id="userName"/>
+      <label>Meter No:</label>
+      <input type="text" id="meterNo"/
+
+  <main class="wrap">
+    <div class="grid">
+      <!-- Left: Calculator + Table -->
+      <section class="card">
+        <h2>⚡ Electricity Consumption Calculator</h2>
+        <div class="help">Fill the form and click <b>Add to list</b>. Values assume 30 days/month.</div>
+
+        <div class="row-3">
+          <div>
+            <label>Appliance name</label>
+            <select id="appliance">
+              <option value="">Select an appliance...</option>
+              <option value="Ceiling Fan">Ceiling Fan</option>
+              <option value="LED Light">LED Light</option>
+              <option value="Tube Light">Tube Light</option>
+              <option value="CFL Bulb">CFL Bulb</option>
+              <option value="Incandescent Bulb">Incandescent Bulb</option>
+              <option value="Refrigerator">Refrigerator</option>
+              <option value="Air Conditioner">Air Conditioner</option>
+              <option value="Desktop Computer">Desktop Computer</option>
+              <option value="Laptop">Laptop</option>
+              <option value="Projector">Projector</option>
+              <option value="Television">Television</option>
+              <option value="Microwave Oven">Microwave Oven</option>
+              <option value="Water Heater">Water Heater</option>
+              <option value="Washing Machine">Washing Machine</option>
+              <option value="Printer">Printer</option>
+              <option value="Photocopier">Photocopier</option>
+              <option value="Electric Kettle">Electric Kettle</option>
+              <option value="Coffee Machine">Coffee Machine</option>
+              <option value="Water Cooler">Water Cooler</option>
+              <option value="Electric Iron">Electric Iron</option>
+              <option value="Hair Dryer">Hair Dryer</option>
+              <option value="Vacuum Cleaner">Vacuum Cleaner</option>
+              <option value="Dishwasher">Dishwasher</option>
+              <option value="Electric Oven">Electric Oven</option>
+              <option value="Induction Cooktop">Induction Cooktop</option>
+              <option value="Electric Heater">Electric Heater</option>
+              <option value="Exhaust Fan">Exhaust Fan</option>
+              <option value="CCTV Camera">CCTV Camera</option>
+              <option value="Sound System">Sound System</option>
+              <option value="Interactive Whiteboard">Interactive Whiteboard</option>
+              <option value="UPS System">UPS System</option>
+              <option value="Router/Modem">Router/Modem</option>
+              <option value="Electric Bell">Electric Bell</option>
+              <option value="Emergency Light">Emergency Light</option>
+              <option value="Water Pump">Water Pump</option>
+            </select>
+          </div>
+          <div>
+            <label>Wattage (W)</label>
+            <input type="number" id="watt" placeholder="e.g., 40" min="1" />
+          </div>
+          <div>
+            <label>Hours used per day</label>
+            <input type="number" id="hours" placeholder="e.g., 6" min="0" step="0.1" />
+          </div>
+        </div>
+        <div class="row-3">
+          <div>
+            <label>Quantity</label>
+            <input type="number" id="quantity" placeholder="e.g., 20" min="1" />
+          </div>
+          <div>
+            <label>Electricity rate (₹/kWh) <span class="help">(optional)</span></label>
+            <input type="number" id="rate" placeholder="e.g., 8" min="0" step="0.01" />
+          </div>
+          <div class="actions" style="align-items:end">
+            <button class="btn primary" id="addBtn">Add to list</button>
+            <button class="btn secondary" id="exampleBtn" title="Load sample data">Load example</button>
+            <button class="btn danger" id="clearBtn">Clear all</button>
+            <button class="btn secondary" id="exportBtn" title="Download current list as CSV">Export CSV</button>
+            <button class="btn secondary" id="importBtn" title="Import items from a CSV file">Import CSV</button>
+            <input type="file" id="importFile" accept=".csv,text/csv" style="display:none" />
+          </div>
+        </div>
+
+        <div style="margin-top:14px; overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Appliance</th>
+                <th class="right">Watt (W)</th>
+                <th class="right">Hours/Day</th>
+                <th class="right">Qty</th>
+                <th class="right">Daily (kWh)</th>
+                <th class="right">Monthly (kWh)</th>
+                <th class="right">Monthly Cost (₹)</th>
+                <th class="center">Remove</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" class="right">Total</td>
+                <td class="right" id="totalDaily">0.00</td>
+                <td class="right" id="totalMonthly">0.00</td>
+                <td class="right" id="totalCost">0.00</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div class="help">Formula: <span class="badge">kWh = (Watt × Hours × Quantity) ÷ 1000</span></div>
+        </div>
+      </section>
+
+      <!-- Right: Chart & Insights -->
+      <section class="card">
+        <h2>📈 Usage by Area / Appliance</h2>
+        <div class="help">These charts update from your list. Shows share of <b>monthly kWh</b>.</div>
+        <canvas id="energyChart" width="400" height="300"></canvas>
+        <canvas id="barChart" width="400" height="300" style="margin-top:20px"></canvas>
+        <div class="help" id="insight"></div>
+        <div class="card" style="margin-top:14px; padding:12px; border-radius:12px; background:var(--card); border:1px solid #e5e7eb;">
+          <h3 style="margin:0 0 8px; font-size:16px;">💡 What-if savings</h3>
+          <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px; font-size:13px;">
+            <span style="color:var(--muted);">Mode:</span>
+            <label style="display:inline-flex; gap:6px; align-items:center;">
+              <input type="radio" name="savingsMode" id="savingsModeSingle" value="single" /> Single
+            </label>
+            <label style="display:inline-flex; gap:6px; align-items:center;">
+              <input type="radio" name="savingsMode" id="savingsModeMulti" value="multiple" checked /> Multiple
+            </label>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:end;">
+            <div>
+              <label for="savingsTarget">Target</label>
+              <select id="savingsTarget" multiple size="6">
+                <option value="__all__">All appliances</option>
+              </select>
+              <div class="help">Tip: Hold Ctrl (Cmd on Mac) to select multiple.</div>
+            </div>
+            <div>
+              <label for="savingsPercent">Reduction (%)</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="range" id="savingsPercent" min="0" max="50" step="5" value="10" style="flex:1"/>
+                <input type="number" id="savingsPercentNum" min="0" max="100" step="1" value="10" style="width:80px"/>
+              </div>
+              <div class="help">Adjust to simulate reducing hours of use.</div>
+            </div>
+          </div>
+          <div style="margin-top:10px; font-size:14px;">
+            <div id="savingsItems" style="display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; margin-bottom:8px;"></div>
+            <div id="savingsSummary">Select items to see potential savings.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>✅ Quick Energy-Saving Tips for Schools</h2>
+      <div class="tips">
+        <div class="tip">Replace old tube lights with LED; they save ~50–60% energy for the same brightness.</div>
+        <div class="tip">Use natural daylight and turn off lights during recess or assembly.</div>
+        <div class="tip">Set computer lab PCs to auto-sleep after 10 minutes of inactivity.</div>
+        <div class="tip">Clean fan blades and AC filters monthly for better efficiency.</div>
+        <div class="tip">Install switch labeling (Classroom 1, Corridor A) so students know what they’re turning on.</div>
+        <div class="tip">Use notice boards to track monthly kWh and run inter-class energy-saving challenges.</div>
+      </div>
+    </section>
+
+    <footer>
+      Built for Energy Audit demo • Edit this file to add your school name, logo, or custom colors.
+    </footer>
+  </main>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // ===== Helpers =====
+    const $ = (sel) => document.querySelector(sel);
+    const fmt = (n, d=2) => (Number(n)||0).toFixed(d);
+    function calcDailyKWh(watt, hours, qty){
+      return (Number(watt) * Number(hours) * Number(qty)) / 1000;
+    }
+
+    // ===== State =====
+    let rows = [];
+    const STORE_KEY = 'ea_rows_v1';
+    function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(rows)); }
+    function load(){ try{ rows = JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }catch{ rows = []; } }
+
+    // ===== Elements =====
+    const tbody = $('#rows');
+    const totalDailyEl = $('#totalDaily');
+    const totalMonthlyEl = $('#totalMonthly');
+    const totalCostEl = $('#totalCost');
+    const insightEl = $('#insight');
+    // Default wattage map for appliances (used to prefill watt input on selection)
+    const defaultWatts = {
+      'Ceiling Fan': 60,
+      'LED Light': 5,
+      'Tube Light': 20,
+      'CFL Bulb': 9,
+      'Incandescent Bulb': 40,
+      'Refrigerator': 100,
+      'Air Conditioner': 900,
+      'Desktop Computer': 150,
+      'Laptop': 20,
+      'Projector': 150,
+      'Television': 60,
+      'Microwave Oven': 600,
+      'Water Heater': 1500,
+      'Washing Machine': 350,
+      'Printer': 15,
+      'Photocopier': 500,
+      'Electric Kettle': 1000,
+      'Coffee Machine': 800,
+      'Water Cooler': 80,
+      'Electric Iron': 1000,
+      'Hair Dryer': 1000,
+      'Vacuum Cleaner': 500,
+      'Dishwasher': 1200,
+      'Electric Oven': 1000,
+      'Induction Cooktop': 1200,
+      'Electric Heater': 1000,
+      'Exhaust Fan': 40,
+      'CCTV Camera': 5,
+      'Sound System': 50,
+      'Interactive Whiteboard': 100,
+      'UPS System': 400,
+      'Router/Modem': 10,
+      'Electric Bell': 5,
+      'Emergency Light': 10,
+      'Water Pump': 300
+    };
+
+    // ===== Colors =====
+    const colors = [
+      '#2563eb','#16a34a','#f59e0b','#ef4444','#8b5cf6',
+      '#06b6d4','#d946ef','#22c55e','#f97316','#0ea5e9'
+    ];
+
+    // ===== Charts =====
+    let chart;
+    function ensureChart(){
+      const ctx = document.getElementById('energyChart').getContext('2d');
+      if(chart) return chart;
+      chart = new Chart(ctx, {
+        type: 'pie',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+        options: { 
+          responsive: true, 
+          plugins: { 
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: function(ctx){
+                  const idx = ctx.dataIndex;
+                  const r = rows[idx];
+                  const monthlyKWh = calcDailyKWh(r.watt, r.hours, r.qty) * 30;
+                  return `${r.name}: ${fmt(monthlyKWh)} kWh/month`;
+                },
+                afterLabel: function(ctx){
+                  const idx = ctx.dataIndex;
+                  const r = rows[idx];
+                  if(!r) return [];
+                  const monthlyKWh = calcDailyKWh(r.watt, r.hours, r.qty) * 30;
+                  const rate = Number(r.rate) || 0;
+                  const cost = monthlyKWh * rate;
+                  const totalCost = rows.reduce((acc, it) => acc + (calcDailyKWh(it.watt, it.hours, it.qty) * 30 * (Number(it.rate)||0)), 0);
+                  const share = totalCost > 0 ? (cost / totalCost) * 100 : 0;
+                  return [
+                    `Monthly Watt: ${fmt(r.watt,0)} W`,
+                    `Monthly Cost: ₹${fmt(cost)}`,
+                    `Share of cost: ${fmt(share,1)}%`
+                  ];
+                }
+              }
+            }
+          } 
+        }
+      });
+      return chart;
+    }
+
+    let barChart;
+    function ensureBarChart(){
+      const ctx = document.getElementById('barChart').getContext('2d');
+      if(barChart) return barChart;
+      barChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Monthly kWh', data: [], backgroundColor: [] }] },
+        options: { 
+          responsive: true, 
+          plugins: { 
+            legend: { display:false },
+            tooltip: {
+              callbacks: {
+                title: function(items){ return items?.[0]?.label || ''; },
+                label: function(ctx){
+                  const idx = ctx.dataIndex;
+                  const r = rows[idx];
+                  const monthlyKWh = calcDailyKWh(r.watt, r.hours, r.qty) * 30;
+                  return `Energy: ${fmt(monthlyKWh)} kWh/month`;
+                },
+                afterLabel: function(ctx){
+                  const idx = ctx.dataIndex;
+                  const r = rows[idx];
+                  if(!r) return [];
+                  const monthlyKWh = calcDailyKWh(r.watt, r.hours, r.qty) * 30;
+                  const rate = Number(r.rate) || 0;
+                  const cost = monthlyKWh * rate;
+                  const totalCost = rows.reduce((acc, it) => acc + (calcDailyKWh(it.watt, it.hours, it.qty) * 30 * (Number(it.rate)||0)), 0);
+                  const share = totalCost > 0 ? (cost / totalCost) * 100 : 0;
+                  return [
+                    `Watt: ${fmt(r.watt,0)} W`,
+                    `Cost: ₹${fmt(cost)}`,
+                    `Share of cost: ${fmt(share,1)}%`
+                  ];
+                }
+              }
+            }
+          }, 
+          scales: { y: { beginAtZero:true } }
+        }
+      });
+      return barChart;
+    }
+
+    // ===== Render =====
+    function render(){
+      tbody.innerHTML = rows.map(r => {
+        const daily = calcDailyKWh(r.watt, r.hours, r.qty);
+        const monthly = daily * 30;
+        const cost = monthly * (Number(r.rate) || 0);
+        return `
+          <tr>
+            <td>${r.name}</td>
+            <td class="right">${fmt(r.watt,0)}</td>
+            <td class="right">${fmt(r.hours,1)}</td>
+            <td class="right">${fmt(r.qty,0)}</td>
+            <td class="right">${fmt(daily)}</td>
+            <td class="right">${fmt(monthly)}</td>
+            <td class="right">${fmt(cost)}</td>
+            <td class="center"><button class="btn secondary" data-id="${r.id}">Remove</button></td>
+          </tr>`;
+      }).join('');
+
+      tbody.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-id');
+          rows = rows.filter(r => String(r.id) !== String(id));
+          save(); render();
+        });
+      });
+
+      const totals = rows.reduce((acc, r) => {
+        const d = calcDailyKWh(r.watt, r.hours, r.qty);
+        const m = d * 30;
+        acc.daily += d; acc.monthly += m; acc.cost += m * (Number(r.rate) || 0);
+        return acc;
+      }, {daily:0, monthly:0, cost:0});
+      totalDailyEl.textContent = fmt(totals.daily);
+      totalMonthlyEl.textContent = fmt(totals.monthly);
+      totalCostEl.textContent = fmt(totals.cost);
+
+      const pie = ensureChart();
+      pie.data.labels = rows.map(r => r.name);
+      pie.data.datasets[0].data = rows.map(r => calcDailyKWh(r.watt, r.hours, r.qty) * 30);
+      pie.data.datasets[0].backgroundColor = rows.map((_, i) => colors[i % colors.length]);
+      pie.update();
+
+      const bar = ensureBarChart();
+      bar.data.labels = rows.map(r => r.name);
+      bar.data.datasets[0].data = rows.map(r => calcDailyKWh(r.watt, r.hours, r.qty) * 30);
+      bar.data.datasets[0].backgroundColor = rows.map((_, i) => colors[i % colors.length]);
+      bar.update();
+
+      if(rows.length){
+        const monthlyVals = rows.map(r => ({ name: r.name, m: calcDailyKWh(r.watt, r.hours, r.qty) * 30 }));
+        monthlyVals.sort((a,b)=>b.m-a.m);
+        const top = monthlyVals[0];
+        const share = (top.m / (totals.monthly||1)) * 100;
+        insightEl.textContent = `Biggest load: ${top.name} – ${fmt(top.m)} kWh/month (~${fmt(share,1)}%). Focus on reducing hours or upgrading to efficient models here.`;
+      } else {
+        insightEl.textContent = 'Add items to see insights.';
+      }
+
+      // Populate What-if target options dynamically (respects mode)
+      const savingsTarget = document.getElementById('savingsTarget');
+      if(savingsTarget){
+        const prevSelected = Array.from(savingsTarget.options || [])
+          .filter(o => o.selected)
+          .map(o => o.value);
+        const options = ['<option value="__all__">All appliances</option>']
+          .concat(rows.map((r, idx) => `<option value="${idx}">${r.name}</option>`));
+        savingsTarget.innerHTML = options.join('');
+        // Restore selections if possible; default to All if none
+        const valuesToSelect = prevSelected.length ? prevSelected : ['__all__'];
+        Array.from(savingsTarget.options).forEach(o => {
+          o.selected = valuesToSelect.includes(o.value);
+        });
+        // Apply selection mode
+        const mode = getSavingsMode();
+        if(mode === 'single'){
+          savingsTarget.multiple = false; savingsTarget.size = 1;
+          // If multiple were selected, keep the first
+          const selected = Array.from(savingsTarget.options).filter(o=>o.selected);
+          if(selected.length > 1){
+            const keep = selected[0].value;
+            Array.from(savingsTarget.options).forEach(o=>o.selected = (o.value===keep));
+          }
+        } else {
+          savingsTarget.multiple = true; savingsTarget.size = 6;
+        }
+      }
+
+      // Rebuild per-appliance controls and update calculation
+      buildSavingsItems();
+      updateSavings();
+    }
+
+    // ===== What-if Savings =====
+    function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
+    function getSavingsMode(){
+      const single = document.getElementById('savingsModeSingle');
+      return (single && single.checked) ? 'single' : 'multiple';
+    }
+    function getPercent(){
+      const range = document.getElementById('savingsPercent');
+      const num = document.getElementById('savingsPercentNum');
+      let p = 0;
+      if(num && isFinite(Number(num.value))) p = Number(num.value);
+      else if(range && isFinite(Number(range.value))) p = Number(range.value);
+      return clamp(p, 0, 100);
+    }
+
+    function buildSavingsItems(){
+      const container = document.getElementById('savingsItems');
+      const targetSel = document.getElementById('savingsTarget');
+      if(!container) return;
+      container.innerHTML = '';
+      if(!rows.length || !targetSel) return;
+      const mode = getSavingsMode();
+      const selected = Array.from(targetSel.selectedOptions).map(o => o.value);
+      if(!selected.length || selected.includes('__all__')){
+        return; // no per-item controls when All is selected
+      }
+      const indices = (mode === 'single' ? selected.slice(0,1) : selected)
+        .map(v => Number(v))
+        .filter(n => Number.isFinite(n) && rows[n]);
+      const defaultP = getPercent();
+      indices.forEach(i => {
+        const r = rows[i];
+        const idRange = `savingsPctRange_${i}`;
+        const idNum = `savingsPctNum_${i}`;
+        const rowHtml = `
+          <div>
+            <label>${r.name}</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="range" id="${idRange}" min="0" max="50" step="5" value="${defaultP}" style="flex:1"/>
+              <input type="number" id="${idNum}" min="0" max="100" step="1" value="${defaultP}" style="width:80px"/>
+            </div>
+            <div class="help" id="savingsItemLine_${i}"></div>
+          </div>`;
+        container.insertAdjacentHTML('beforeend', rowHtml);
+      });
+      // wire events
+      indices.forEach(i => {
+        const idRange = `savingsPctRange_${i}`;
+        const idNum = `savingsPctNum_${i}`;
+        const rangeEl = document.getElementById(idRange);
+        const numEl = document.getElementById(idNum);
+        if(rangeEl && numEl){
+          const syncFromRange = () => { numEl.value = rangeEl.value; updateSavings(); };
+          const syncFromNum = () => {
+            const v = Math.max(0, Math.min(100, Number(numEl.value||0)));
+            numEl.value = String(v);
+            const vr = Math.max(0, Math.min(50, v));
+            rangeEl.value = String(vr);
+            updateSavings();
+          };
+          rangeEl.addEventListener('input', syncFromRange);
+          rangeEl.addEventListener('change', syncFromRange);
+          numEl.addEventListener('input', syncFromNum);
+          numEl.addEventListener('change', syncFromNum);
+        }
+      });
+    }
+
+    function updateSavings(){
+      const summaryEl = document.getElementById('savingsSummary');
+      if(!summaryEl) return;
+      if(!rows.length){ summaryEl.textContent = 'Add items to see potential savings.'; return; }
+
+      const p = getPercent();
+      const reduction = p / 100;
+      const targetSel = document.getElementById('savingsTarget');
+      const selected = targetSel ? Array.from(targetSel.selectedOptions).map(o => o.value) : ['__all__'];
+
+      // Compute baseline totals
+      const items = rows.map(r => {
+        const monthlyKWh = calcDailyKWh(r.watt, r.hours, r.qty) * 30;
+        const rate = Number(r.rate) || 0;
+        const monthlyCost = monthlyKWh * rate;
+        return { name:r.name, monthlyKWh, monthlyCost };
+      });
+      const baselineKWh = items.reduce((a,x)=>a+x.monthlyKWh,0);
+      const baselineCost = items.reduce((a,x)=>a+x.monthlyCost,0);
+
+      let savedKWh = 0, savedCost = 0, targetName = 'All appliances';
+      const mode = getSavingsMode();
+      if(!selected.length || selected.includes('__all__')){
+        // Apply global reduction to all
+        savedKWh = baselineKWh * reduction;
+        savedCost = baselineCost * reduction;
+      } else {
+        const indices = (mode === 'single' ? selected.slice(0,1) : selected)
+          .map(v => Number(v))
+          .filter(n => Number.isFinite(n) && rows[n]);
+        indices.forEach(i => {
+          const item = items[i];
+          // per-item percentage if provided, else fall back to global p
+          const numEl = document.getElementById(`savingsPctNum_${i}`);
+          const pi = numEl && isFinite(Number(numEl.value)) ? Math.max(0, Math.min(100, Number(numEl.value))) : p;
+          const ri = pi / 100;
+          const itemSavedKWh = item.monthlyKWh * ri;
+          const itemSavedCost = item.monthlyCost * ri;
+          savedKWh += itemSavedKWh;
+          savedCost += itemSavedCost;
+          // Update per-item summary line
+          const line = document.getElementById(`savingsItemLine_${i}`);
+          if(line){ line.textContent = `Saves ${fmt(itemSavedKWh)} kWh/month (₹${fmt(itemSavedCost)})`; }
+        });
+        targetName = indices.length === 1 ? rows[indices[0]].name : `${indices.length} appliances`;
+      }
+
+      const newMonthlyCost = baselineCost - savedCost;
+      const costDropPct = baselineCost > 0 ? (savedCost / baselineCost) * 100 : 0;
+
+      if(baselineCost > 0){
+        summaryEl.textContent = `If you reduce usage of ${targetName} by variable percentages → Save ${fmt(savedKWh)} kWh/month (₹${fmt(savedCost)}). New monthly cost: ₹${fmt(newMonthlyCost)} (↓${fmt(costDropPct,1)}%).`;
+      } else {
+        summaryEl.textContent = `If you reduce usage of ${targetName} → Save ${fmt(savedKWh)} kWh/month.`;
+      }
+    }
+
+    // ===== Add / Clear / Example =====
+    function addFromInputs(){
+      const name = $('#appliance').value.trim();
+      const watt = parseFloat($('#watt').value);
+      const hours = parseFloat($('#hours').value);
+      const qty = parseInt($('#quantity').value, 10);
+      const rate = parseFloat($('#rate').value);
+
+      if(!name || !isFinite(watt) || !isFinite(hours) || !isFinite(qty)){
+        alert('Please fill Appliance, Watt, Hours, and Quantity correctly.');
+        return;
+      }
+      rows.push({ id: Date.now()+Math.random(), name, watt, hours, qty, rate });
+      $('#appliance').value = '';
+      $('#watt').value = '';
+      $('#hours').value = '';
+      $('#quantity').value = '';
+      save(); render(); $('#appliance').focus();
+    }
+
+    function loadExample(){
+      rows = [
+        {id:1, name:'Classroom LED Lights', watt:18, hours:6, qty:40, rate:8},
+        {id:2, name:'Ceiling Fans', watt:75, hours:6, qty:25, rate:8},
+        {id:3, name:'Computer Lab PCs', watt:120, hours:5, qty:20, rate:8},
+        {id:4, name:'Projectors', watt:200, hours:3, qty:3, rate:8},
+        {id:5, name:'Corridor Lights', watt:18, hours:8, qty:30, rate:8},
+      ];
+      save(); render();
+    }
+
+    function clearAll(){
+      if(confirm('Clear all items?')){ rows = []; save(); render(); }
+    }
+
+    // ===== CSV Export / Import =====
+    function toCSVRow(values){
+      return values.map(v => {
+        const s = String(v ?? '');
+        if(/[",\n]/.test(s)){
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }).join(',');
+    }
+
+    function exportCSV(){
+      const header = ['name','watt','hours','qty','rate'];
+      const lines = [toCSVRow(header)];
+      rows.forEach(r => {
+        lines.push(toCSVRow([r.name, r.watt, r.hours, r.qty, (r.rate ?? '')]));
+      });
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+      a.download = `energy-audit-${ts}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function parseCSV(text){
+      const rows = [];
+      let i = 0, field = '', inQuotes = false, row = [];
+      while(i < text.length){
+        const c = text[i++];
+        if(inQuotes){
+          if(c === '"'){
+            if(text[i] === '"'){ field += '"'; i++; }
+            else { inQuotes = false; }
+          } else { field += c; }
+        } else {
+          if(c === '"'){ inQuotes = true; }
+          else if(c === ','){ row.push(field); field = ''; }
+          else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+          else if(c === '\r'){ /* ignore */ }
+          else { field += c; }
+        }
+      }
+      // push last field/row
+      if(field.length || row.length){ row.push(field); rows.push(row); }
+      return rows;
+    }
+
+    function importCSVText(text, mode='append'){
+      const parsed = parseCSV(text);
+      if(parsed.length === 0) return;
+      // detect header
+      const header = parsed[0].map(h => h.trim().toLowerCase());
+      const hasHeader = ['name','watt','hours','qty'].every(k => header.includes(k));
+      const startIdx = hasHeader ? 1 : 0;
+      const idx = (k) => {
+        const pos = header.indexOf(k);
+        return pos >= 0 ? pos : -1;
+      };
+
+      const imported = [];
+      for(let r = startIdx; r < parsed.length; r++){
+        const row = parsed[r];
+        if(row.every(cell => (cell||'').trim() === '')) continue; // skip empty
+        const name = row[idx('name')] ?? row[0] ?? '';
+        const watt = parseFloat(row[idx('watt')] ?? '');
+        const hours = parseFloat(row[idx('hours')] ?? '');
+        const qty = parseInt(row[idx('qty')] ?? '', 10);
+        const rate = parseFloat(row[idx('rate')] ?? '');
+        if(!name || !isFinite(watt) || !isFinite(hours) || !isFinite(qty)){
+          // skip invalid rows
+          continue;
+        }
+        imported.push({ id: Date.now()+Math.random(), name, watt, hours, qty, rate });
+      }
+
+      if(!imported.length){
+        alert('No valid rows found in CSV. Ensure it has columns: name, watt, hours, qty, [rate]');
+        return;
+      }
+
+      if(mode === 'replace') rows = imported; else rows = rows.concat(imported);
+      save(); render();
+    }
+
+    // ===== Init =====
+    window.addEventListener('DOMContentLoaded', () => {
+      load(); render();
+      $('#addBtn').addEventListener('click', addFromInputs);
+      $('#clearBtn').addEventListener('click', clearAll);
+      $('#exampleBtn').addEventListener('click', loadExample);
+      ['#appliance','#watt','#hours','#quantity','#rate'].forEach(sel => {
+        $(sel).addEventListener('keydown', (e) => { if(e.key==='Enter'){ addFromInputs(); } });
+      });
+      // Prefill wattage when an appliance is selected
+      const applianceSel = $('#appliance');
+      if (applianceSel) {
+        applianceSel.addEventListener('change', () => {
+          const v = applianceSel.value;
+          if (Object.prototype.hasOwnProperty.call(defaultWatts, v)) {
+            $('#watt').value = defaultWatts[v];
+          }
+        });
+      }
+
+      // CSV export/import handlers
+      const exportBtn = document.getElementById('exportBtn');
+      if(exportBtn){ exportBtn.addEventListener('click', exportCSV); }
+
+      const importBtn = document.getElementById('importBtn');
+      const importFile = document.getElementById('importFile');
+      if(importBtn && importFile){
+        importBtn.addEventListener('click', () => importFile.click());
+        importFile.addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if(!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            const mode = confirm('Replace existing items with imported CSV?\nClick OK to Replace, or Cancel to Append.') ? 'replace' : 'append';
+            importCSVText(String(reader.result || ''), mode);
+            importFile.value = '';
+          };
+          reader.onerror = () => { alert('Failed to read CSV file.'); importFile.value=''; };
+          reader.readAsText(file);
+        });
+      }
+
+      // What-if savings controls sync
+      const savingsRange = document.getElementById('savingsPercent');
+      const savingsNum = document.getElementById('savingsPercentNum');
+      const savingsTarget = document.getElementById('savingsTarget');
+      if(savingsRange && savingsNum){
+        const syncFromRange = () => { savingsNum.value = savingsRange.value; updateSavings(); };
+        const syncFromNum = () => { 
+          const v = Math.max(0, Math.min(100, Number(savingsNum.value||0)));
+          savingsNum.value = String(v);
+          // Clamp range max to 50 as per UI, but still mirror in-range value
+          const vr = Math.max(0, Math.min(50, v));
+          savingsRange.value = String(vr);
+          updateSavings();
+        };
+        savingsRange.addEventListener('input', syncFromRange);
+        savingsRange.addEventListener('change', syncFromRange);
+        savingsNum.addEventListener('input', syncFromNum);
+        savingsNum.addEventListener('change', syncFromNum);
+      }
+      if(savingsTarget){
+        savingsTarget.addEventListener('change', updateSavings);
+      }
+    });
+  </script>
+</body>
+</html>
