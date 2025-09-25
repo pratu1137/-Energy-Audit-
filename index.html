@@ -97,7 +97,36 @@
       <label>Name:</label>
       <input type="text" id="userName"/>
       <label>Meter No:</label>
-      <input type="text" id="meterNo"/
+      <input type="text" id="meterNo"/>
+    </div>
+  </div>
+
+  <!-- Auth & Server Controls -->
+  <main class="wrap">
+    <section class="card" style="margin-top:12px;">
+      <h2>🔐 Account</h2>
+      <div class="help">Register or login to save your data on the server and export securely.</div>
+      <div class="row-3">
+        <div>
+          <label>Email</label>
+          <input type="text" id="authEmail" placeholder="you@example.com"/>
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="authPassword" placeholder="Password"/>
+        </div>
+        <div>
+          <label>Name (optional, on register)</label>
+          <input type="text" id="authName" placeholder="Your name"/>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" id="registerBtn">Register</button>
+        <button class="btn primary" id="loginBtn">Login</button>
+        <button class="btn danger" id="logoutBtn">Logout</button>
+        <span id="authStatus" class="help"></span>
+      </div>
+    </section>
 
   <main class="wrap">
     <div class="grid">
@@ -170,7 +199,9 @@
             <button class="btn primary" id="addBtn">Add to list</button>
             <button class="btn secondary" id="exampleBtn" title="Load sample data">Load example</button>
             <button class="btn danger" id="clearBtn">Clear all</button>
-            <button class="btn secondary" id="exportBtn" title="Download current list as CSV">Export CSV</button>
+            <button class="btn secondary" id="saveServerBtn" title="Save my data to server (one row per user)">Save to Server</button>
+            <button class="btn secondary" id="exportBtn" title="Download my data as CSV from server (requires login)">Export My CSV</button>
+            <button class="btn secondary" id="adminExportBtn" title="Admin only: download full CSV" style="display:none;">Admin: Export All</button>
             <button class="btn secondary" id="importBtn" title="Import items from a CSV file">Import CSV</button>
             <input type="file" id="importFile" accept=".csv,text/csv" style="display:none" />
           </div>
@@ -279,6 +310,8 @@
     // ===== State =====
     let rows = [];
     const STORE_KEY = 'ea_rows_v1';
+    const USER_KEY = 'ea_user_v1';
+    const METER_KEY = 'ea_meter_v1';
     function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(rows)); }
     function load(){ try{ rows = JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }catch{ rows = []; } }
 
@@ -650,7 +683,7 @@
         alert('Please fill Appliance, Watt, Hours, and Quantity correctly.');
         return;
       }
-      rows.push({ id: Date.now()+Math.random(), name, watt, hours, qty, rate });
+      rows.push({ id: Date.now()+Math.random(), name, watt, hours, qty, rate, user: getUserName() });
       $('#appliance').value = '';
       $('#watt').value = '';
       $('#hours').value = '';
@@ -684,10 +717,36 @@
       }).join(',');
     }
 
+    function getUserName(){
+      const el = document.getElementById('userName');
+      return (el && el.value) ? String(el.value).trim() : '';
+    }
+    function getMeterNo(){
+      const el = document.getElementById('meterNo');
+      return (el && el.value) ? String(el.value).trim() : '';
+    }
+
     function exportCSV(){
-      const header = ['name','watt','hours','qty','rate'];
-      const lines = [toCSVRow(header)];
-      rows.forEach(r => {
+      // New format: store user metadata once at the top, then item rows without user fields
+      // Meta header
+      const lines = [];
+      lines.push(toCSVRow(['user','meterNo']));
+      lines.push(toCSVRow([getUserName(), getMeterNo()]));
+      // Blank separator
+      lines.push('');
+      // Items header
+      const itemsHeader = ['name','watt','hours','qty','rate'];
+      lines.push(toCSVRow(itemsHeader));
+      const currentUser = (getUserName() || '').trim().toLowerCase();
+      if(!currentUser){
+        alert('Please enter the User name before exporting. Only the current user\'s data will be exported.');
+        return;
+      }
+      const exportRows = rows.filter(r => {
+        const ru = (String(r.user || '')).trim().toLowerCase();
+        return ru === currentUser; // include only rows matching current user; exclude untagged rows
+      });
+      exportRows.forEach(r => {
         lines.push(toCSVRow([r.name, r.watt, r.hours, r.qty, (r.rate ?? '')]));
       });
       const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -695,7 +754,8 @@
       const a = document.createElement('a');
       a.href = url;
       const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-      a.download = `energy-audit-${ts}.csv`;
+      const uname = (getUserName()||'user').replace(/[^a-z0-9_-]+/gi,'_');
+      a.download = `energy-audit-${uname}-${ts}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -728,43 +788,109 @@
     function importCSVText(text, mode='append'){
       const parsed = parseCSV(text);
       if(parsed.length === 0) return;
+      // Remove fully empty rows
+      const cleaned = parsed.filter(r => Array.isArray(r) && r.some(c => (c||'').trim() !== ''));
+      if(cleaned.length === 0) return;
       // detect header
-      const header = parsed[0].map(h => h.trim().toLowerCase());
-      const hasHeader = ['name','watt','hours','qty'].every(k => header.includes(k));
-      const startIdx = hasHeader ? 1 : 0;
+      let header = cleaned[0].map(h => String(h).trim().toLowerCase());
+      let startIdx = 0;
+      let metaMode = false;
+      let metaUser = '';
+      let metaMeter = '';
+      // New meta-first format: first header is ['user','meterno'] then next header is items
+      if(header.length && header.includes('user') && (header.includes('meterno') || header.includes('meter no') || header.includes('meter_no')) && header.every(h => ['user','meterno','meter no','meter_no'].includes(h))){
+        metaMode = true;
+        // Read meta values row if available
+        if(cleaned.length >= 2){
+          const metaVals = cleaned[1];
+          const uPos = header.indexOf('user');
+          const mPos = header.indexOf('meterno') >= 0 ? header.indexOf('meterno') : (header.indexOf('meter no') >= 0 ? header.indexOf('meter no') : header.indexOf('meter_no'));
+          metaUser = uPos >= 0 ? String(metaVals[uPos]||'').trim() : '';
+          metaMeter = mPos >= 0 ? String(metaVals[mPos]||'').trim() : '';
+          const userEl = document.getElementById('userName');
+          const meterEl = document.getElementById('meterNo');
+          if(userEl && metaUser){ userEl.value = metaUser; localStorage.setItem(USER_KEY, metaUser); }
+          if(meterEl && metaMeter){ meterEl.value = metaMeter; localStorage.setItem(METER_KEY, metaMeter); }
+        }
+        // Find next non-empty row that looks like item header
+        let idxRow = 2;
+        while(idxRow < cleaned.length && cleaned[idxRow].every(c => (c||'').trim() === '')) idxRow++;
+        if(idxRow < cleaned.length){
+          header = cleaned[idxRow].map(h => String(h).trim().toLowerCase());
+          startIdx = idxRow + 1;
+        } else {
+          // No items found
+          alert('No item rows found after meta section.');
+          return;
+        }
+      } else {
+        // Old format
+        const hasHeader = ['name','watt','hours','qty'].every(k => header.includes(k));
+        startIdx = hasHeader ? 1 : 0;
+      }
       const idx = (k) => {
         const pos = header.indexOf(k);
         return pos >= 0 ? pos : -1;
       };
+      // Flexible indices for meta fields
+      const userIdx = (() => {
+        const keys = ['user','username','user name','name'];
+        for(const k of keys){ const p = idx(k); if(p >= 0) return p; }
+        return -1;
+      })();
+      const meterIdx = (() => {
+        const keys = ['meterno','meter no','meter_no','meter'];
+        for(const k of keys){ const p = idx(k); if(p >= 0) return p; }
+        return -1;
+      })();
 
       const imported = [];
-      for(let r = startIdx; r < parsed.length; r++){
-        const row = parsed[r];
+      let importedUser = '';
+      let importedMeter = '';
+      for(let r = startIdx; r < cleaned.length; r++){
+        const row = cleaned[r];
         if(row.every(cell => (cell||'').trim() === '')) continue; // skip empty
         const name = row[idx('name')] ?? row[0] ?? '';
         const watt = parseFloat(row[idx('watt')] ?? '');
         const hours = parseFloat(row[idx('hours')] ?? '');
         const qty = parseInt(row[idx('qty')] ?? '', 10);
         const rate = parseFloat(row[idx('rate')] ?? '');
+        const u = userIdx >= 0 ? String(row[userIdx]||'').trim() : '';
+        const m = meterIdx >= 0 ? String(row[meterIdx]||'').trim() : '';
+        if(!importedUser && u) importedUser = u;
+        if(!importedMeter && m) importedMeter = m;
         if(!name || !isFinite(watt) || !isFinite(hours) || !isFinite(qty)){
           // skip invalid rows
           continue;
         }
-        imported.push({ id: Date.now()+Math.random(), name, watt, hours, qty, rate });
+        const rec = { id: Date.now()+Math.random(), name, watt, hours, qty, rate };
+        if(metaMode && metaUser){ rec.user = metaUser; }
+        else if(u){ rec.user = u; }
+        imported.push(rec);
       }
 
       if(!imported.length){
-        alert('No valid rows found in CSV. Ensure it has columns: name, watt, hours, qty, [rate]');
+        alert('No valid rows found in CSV. Ensure it has columns: user, meterNo, name, watt, hours, qty, [rate]');
         return;
       }
 
       if(mode === 'replace') rows = imported; else rows = rows.concat(imported);
+      // Apply imported meta fields to inputs and persist (old format fallback)
+      const userEl = document.getElementById('userName');
+      const meterEl = document.getElementById('meterNo');
+      if(userEl && importedUser){ userEl.value = importedUser; localStorage.setItem(USER_KEY, importedUser); }
+      if(meterEl && importedMeter){ meterEl.value = importedMeter; localStorage.setItem(METER_KEY, importedMeter); }
       save(); render();
     }
 
     // ===== Init =====
     window.addEventListener('DOMContentLoaded', () => {
       load(); render();
+      // Prefill and persist User and Meter No
+      const userEl = document.getElementById('userName');
+      const meterEl = document.getElementById('meterNo');
+      if(userEl){ userEl.value = localStorage.getItem(USER_KEY) || ''; userEl.addEventListener('input', ()=> localStorage.setItem(USER_KEY, userEl.value.trim())); }
+      if(meterEl){ meterEl.value = localStorage.getItem(METER_KEY) || ''; meterEl.addEventListener('input', ()=> localStorage.setItem(METER_KEY, meterEl.value.trim())); }
       $('#addBtn').addEventListener('click', addFromInputs);
       $('#clearBtn').addEventListener('click', clearAll);
       $('#exampleBtn').addEventListener('click', loadExample);
